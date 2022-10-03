@@ -8,7 +8,7 @@ namespace NuGetNN
 {
     public static class EmotionNN
     {
-        public static Array EmotionFerplus(Image<Rgb24> image)
+        public static Dictionary<string, float> EmotionFerplus(Image<Rgb24> image)
         {
             using var modelStream = typeof(EmotionNN).Assembly.GetManifestResourceStream("package.emotion-ferplus-7.onnx");
             using var memoryStream = new MemoryStream();
@@ -22,7 +22,7 @@ namespace NuGetNN
             var emotions = Softmax(results.First(v => v.Name == "Plus692_Output_0").AsEnumerable<float>().ToArray());
 
             string[] keys = { "neutral", "happiness", "surprise", "sadness", "anger", "disgust", "fear", "contempt" };
-            return keys.Zip(emotions).ToArray();
+            return keys.Zip(emotions).ToDictionary(item => item.First, item => item.Second);
         }
 
         private static DenseTensor<float> GrayscaleImageToTensor(Image<Rgb24> img)
