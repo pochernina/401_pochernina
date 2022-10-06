@@ -6,26 +6,43 @@ using SixLabors.ImageSharp.Processing;
 
 namespace NuGetNN
 {
-    public static class EmotionNN
+    public class EmotionNN
     {
-        public static Dictionary<string, float> EmotionFerplus(Image<Rgb24> image)
+        private InferenceSession session;
+        public EmotionNN()
         {
             using var modelStream = typeof(EmotionNN).Assembly.GetManifestResourceStream("package.emotion-ferplus-7.onnx");
             using var memoryStream = new MemoryStream();
             modelStream!.CopyTo(memoryStream);
-            using var session = new InferenceSession(memoryStream.ToArray());
-
-            image.Mutate(ctx => ctx.Resize(new Size(64, 64)));
-
-            var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("Input3", GrayscaleImageToTensor(image)) };
-            using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = session.Run(inputs);
-            var emotions = Softmax(results.First(v => v.Name == "Plus692_Output_0").AsEnumerable<float>().ToArray());
-
-            string[] keys = { "neutral", "happiness", "surprise", "sadness", "anger", "disgust", "fear", "contempt" };
-            return keys.Zip(emotions).ToDictionary(item => item.First, item => item.Second);
+            session = new InferenceSession(memoryStream.ToArray());
         }
 
-        private static DenseTensor<float> GrayscaleImageToTensor(Image<Rgb24> img)
+        ~EmotionNN()
+        {
+            session.Dispose();
+        }
+
+        private string[] keys = { "neutral", "happiness", "surprise", "sadness", "anger", "disgust", "fear", "contempt" };
+
+        public async Task<Dictionary<string, float>> EmotionFerplusAsync(Image<Rgb24> image, CancellationToken token)
+        {
+            return await Task<Dictionary<string, float>>.Factory.StartNew(() =>
+            {
+                image.Mutate(ctx => ctx.Resize(new Size(64, 64)));
+                var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("Input3", GrayscaleImageToTensor(image)) };
+                token.ThrowIfCancellationRequested();
+                float[] softmax_var;
+                lock (this.session)
+                {
+                    using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = session.Run(inputs);
+                    softmax_var = results.First(v => v.Name == "Plus692_Output_0").AsEnumerable<float>().ToArray();
+                }
+                var emotions = Softmax(softmax_var);
+                return keys.Zip(emotions).ToDictionary(item => item.First, item => item.Second);
+            }, token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        }
+
+        private DenseTensor<float> GrayscaleImageToTensor(Image<Rgb24> img)
         {
             var w = img.Width;
             var h = img.Height;
@@ -38,14 +55,14 @@ namespace NuGetNN
                     Span<Rgb24> pixelSpan = pa.GetRowSpan(y);
                     for (int x = 0; x < w; x++)
                     {
-                        t[0, 0, y, x] = pixelSpan[x].R; // B and G are the same
+                        t[0, 0, y, x] = pixelSpan[x].R;
                     }
                 }
             });
 
             return t;
         }
-        private static float[] Softmax(float[] z)
+        private float[] Softmax(float[] z)
         {
             var exps = z.Select(x => Math.Exp(x)).ToArray();
             var sum = exps.Sum();

@@ -1,26 +1,47 @@
 using Xunit;
 using Xunit.Abstractions;
-using NuGetNN;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+
 // dotnet test --logger:"console;verbosity=detailed"
-namespace NugetNN
+
+using NuGetNN;
+
+namespace Tests
 {
-    public class UnitTest1
+    public class UnitTests
     {
         private readonly ITestOutputHelper _output;
-        public UnitTest1(ITestOutputHelper output)
+        public UnitTests(ITestOutputHelper output)
         {
             _output = output;
         }
 
         [Fact]
-        public void Test1()
+        public async Task Test()
         {
-            Image<Rgb24> image = Image.Load<Rgb24>("face.png");
-            var emotions = EmotionNN.EmotionFerplus(image);
-            _output.WriteLine($"{emotions.GetType()}");
-            foreach (KeyValuePair<string, float> kvp in emotions)
+            Image<Rgb24> image1 = Image.Load<Rgb24>("face1.png");
+            Image<Rgb24> image2 = Image.Load<Rgb24>("face2.jpg");
+            Image<Rgb24> image3 = Image.Load<Rgb24>("face3.jpg");
+
+            var emotionNN = new EmotionNN();
+
+            var emotions1 = emotionNN.EmotionFerplusAsync(image1, CancellationToken.None);
+            var emotions2 = emotionNN.EmotionFerplusAsync(image2, CancellationToken.None);
+            var emotions3 = emotionNN.EmotionFerplusAsync(image3, CancellationToken.None);
+
+            await emotions1;
+            await emotions2;
+            await emotions3;
+
+            _output.WriteLine("Image 1");
+            foreach (KeyValuePair<string, float> kvp in emotions1.Result)
+                _output.WriteLine($"{kvp.Key}, {kvp.Value}");
+            _output.WriteLine("\nImage 2");
+            foreach (KeyValuePair<string, float> kvp in emotions2.Result)
+                _output.WriteLine($"{kvp.Key}, {kvp.Value}");
+            _output.WriteLine("\nImage 3");
+            foreach (KeyValuePair<string, float> kvp in emotions3.Result)
                 _output.WriteLine($"{kvp.Key}, {kvp.Value}");
         }
     }
