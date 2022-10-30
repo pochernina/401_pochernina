@@ -21,8 +21,8 @@ namespace Tests
         public async Task Test()
         {
             Image<Rgb24> image1 = Image.Load<Rgb24>("face1.png");
-            Image<Rgb24> image2 = Image.Load<Rgb24>("face2.jpg");
-            Image<Rgb24> image3 = Image.Load<Rgb24>("face3.jpg");
+            Image<Rgb24> image2 = Image.Load<Rgb24>("fear.jpg");
+            Image<Rgb24> image3 = Image.Load<Rgb24>("depp.jpg");
 
             var emotionNN = new EmotionNN();
 

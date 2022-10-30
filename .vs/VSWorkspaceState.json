@@ -1,0 +1,13 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\nuget",
+    "\\nuget\\app",
+    "\\nuget\\package",
+    "\\nuget\\tests",
+    "\\wpf",
+    "\\wpf\\wpf"
+  ],
+  "SelectedNode": "\\wpf\\wpf\\Sort.cs",
+  "PreviewInSolutionExplorer": false
+}
