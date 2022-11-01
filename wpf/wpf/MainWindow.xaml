@@ -16,8 +16,8 @@
             <ComboBox ItemsSource="{Binding data.Keys}" SelectedItem="{Binding data.SelectedKey}" SelectionChanged="KeyChanged" Width="90" Margin="10,0,70,0"/>
             <TextBlock Text="{Binding data.ProgressText}"/>
             <ProgressBar Name="pb" Minimum="0" Maximum="{Binding data.MaxProgress}" Width="100" Margin="5,0,0,0"/>
-            <Button Content="Clear" Click="Clear" Width="35" Margin="70,0,10,0"/>
-            <Button Content="Cancel" Click="Cancel" IsEnabled="{Binding data.Enabled}" Width="50" Margin="10,0,50,0"/>
+            <Button Content="Clear" Click="Clear" IsEnabled="{Binding data.ClearEnabled}" Width="35" Margin="70,0,10,0"/>
+            <Button Content="Cancel" Click="Cancel" IsEnabled="{Binding data.CancelEnabled}" Width="50" Margin="10,0,50,0"/>
         </StackPanel>
 
         <ListBox ItemsSource="{Binding data.Results}" Grid.Row="1" HorizontalContentAlignment="Center">

@@ -42,14 +42,25 @@ namespace wpf
             }
         }
 
-        private bool enabled = false;
-        public bool Enabled
+        private bool clearEnabled = false;
+        public bool ClearEnabled
         {
-            get => enabled;
+            get => clearEnabled;
             set
             {
-                enabled = value;
-                OnPropertyChanged("Enabled");
+                clearEnabled = value;
+                OnPropertyChanged("ClearEnabled");
+            }
+        }
+
+        private bool cancelEnabled = false;
+        public bool CancelEnabled
+        {
+            get => cancelEnabled;
+            set
+            {
+                cancelEnabled = value;
+                OnPropertyChanged("CancelEnabled");
             }
         }
 

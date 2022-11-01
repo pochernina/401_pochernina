@@ -33,9 +33,11 @@ namespace wpf
             if (dialog.ShowDialog() == true)
                 foreach (var path in System.IO.Directory.GetFiles(dialog.SelectedPath))
                     image_paths.Add(path);
+            else return;
 
             data.MaxProgress += image_paths.Count;
-            data.Enabled = true;
+            data.CancelEnabled = true;
+            data.ClearEnabled = false;
             var emotionNN = new EmotionNN();
             foreach (var path in image_paths)
             {
@@ -51,7 +53,8 @@ namespace wpf
                 }
                 catch (Exception) { MessageBox.Show("Calculations have been canceled"); break; }
             }
-            data.Enabled = false;
+            data.CancelEnabled = false;
+            data.ClearEnabled = true;
             KeyChanged(sender, e);
         }
 
