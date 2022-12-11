@@ -5,10 +5,10 @@ using SixLabors.ImageSharp.PixelFormats;
 var watch = new System.Diagnostics.Stopwatch();
 watch.Start();
 
-Image<Rgb24> image1 = Image.Load<Rgb24>("face1.png");
-Image<Rgb24> image2 = Image.Load<Rgb24>("fear.jpg");
-Image<Rgb24> image3 = Image.Load<Rgb24>("cat_face.jpg");
-Image<Rgb24> image4 = Image.Load<Rgb24>("depp.jpg");
+Image<Rgb24> image1 = Image.Load<Rgb24>("../../images/face1.png");
+Image<Rgb24> image2 = Image.Load<Rgb24>("../../images/fear.jpg");
+Image<Rgb24> image3 = Image.Load<Rgb24>("../../images/cat_face.jpg");
+Image<Rgb24> image4 = Image.Load<Rgb24>("../../images/depp.jpg");
 
 var emotionNN = new EmotionNN();
 
