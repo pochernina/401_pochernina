@@ -1,13 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 
-namespace wpf_client
+namespace server
 {
     class ImageItem
     {
         [Key]
         public int ImageId { get; set; }
-        public string Path { get; set; }
         public int Hash { get; set; }
         public byte[] Image { get; set; }
         public string Emotions { get; set; }
@@ -21,6 +20,8 @@ namespace wpf_client
         {
             Database.EnsureCreated();
         }
+
+        public Database(DbContextOptions<Database> options) : base(options) {}
 
         protected override void OnConfiguring(DbContextOptionsBuilder o)
         {

@@ -1,18 +1,19 @@
 ﻿using System.Collections.Generic;
 using System.ComponentModel;
+using System.Printing.IndexedProperties;
 
 namespace wpf_client
 {
     public class Result : INotifyPropertyChanged
     {
-        private string path;
-        public string Path
+        private byte[] image;
+        public byte[] Image
         {
-            get => path;
+            get => image;
             set
             {
-                path = value;
-                OnPropertyChanged("Path");
+                image = value;
+                OnPropertyChanged("Image");
             }
         }
 

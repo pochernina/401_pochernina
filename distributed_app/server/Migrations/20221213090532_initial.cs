@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace wpfclient.Migrations
+namespace server.Migrations
 {
     /// <inheritdoc />
     public partial class initial : Migration

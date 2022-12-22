@@ -22,15 +22,10 @@
         </StackPanel>
 
         <ListBox Name="lb" ItemsSource="{Binding data.Results}" Grid.Row="1" HorizontalContentAlignment="Center">
-            <ListBox.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="Delete" Click="DeleteImage"/>
-                </ContextMenu>
-            </ListBox.ContextMenu>
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal">
-                        <Image Source="{Binding Path}" Height="150" Margin="0,5,10,0"/>
+                        <Image Source="{Binding Image}" Height="150" Margin="0,5,10,0"/>
                         <ListBox ItemsSource="{Binding Emotions}" Margin="10,5,0,0"/>
                     </StackPanel>
                 </DataTemplate>
