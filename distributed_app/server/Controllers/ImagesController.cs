@@ -1,8 +1,8 @@
-using Microsoft.AspNetCore.Mvc;
 using NuGetNN;
+using System.Numerics;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
-using System.Numerics;
+using Microsoft.AspNetCore.Mvc;
 
 namespace server.Controllers
 {
@@ -10,10 +10,11 @@ namespace server.Controllers
     [Route("api/images")]
     public class ImagesController : ControllerBase
     {
+        EmotionNN emotionNN = new EmotionNN();
+
         [HttpPost]
         public async Task<string> Predict([FromBody]string image, CancellationToken token)
         {
-            var emotionNN = new EmotionNN();
             string result = "";
             using (var db = new Database())
             {
@@ -25,24 +26,20 @@ namespace server.Controllers
                                 .FirstOrDefault();
                 if (q == null)
                 {
-                    try
+                    var emotions = await emotionNN.EmotionFerplusAsync(img, token);
+
+                    emotions = emotions.OrderByDescending(e => e.Value).ToDictionary(item => item.Key, item => item.Value);
+                    result = string.Join("; ", emotions.Select(e => string
+                                                        .Format("{0}: {1}", e.Key, e.Value)));
+
+                    ImageItem item = new ImageItem
                     {
-                        var emotions = await emotionNN.EmotionFerplusAsync(img, token);
-
-                        emotions = emotions.OrderByDescending(e => e.Value).ToDictionary(item => item.Key, item => item.Value);
-                        result = string.Join("; ", emotions.Select(e => string
-                                                           .Format("{0}: {1}", e.Key, e.Value)));
-
-                        ImageItem item = new ImageItem
-                        {
-                            Hash = hash,
-                            Image = img_bytes,
-                            Emotions = result
-                        };
-                        db.Add(item);
-                        db.SaveChanges();
-                    }
-                    catch (Exception) { return "error"; }
+                        Hash = hash,
+                        Image = img_bytes,
+                        Emotions = result
+                    };
+                    db.Add(item);
+                    db.SaveChanges();
                 }
             }
             return result;

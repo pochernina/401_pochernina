@@ -7,6 +7,8 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Threading;
 using System.Windows;
+using Polly;
+using Polly.Retry;
 
 namespace wpf_client
 {
@@ -15,6 +17,7 @@ namespace wpf_client
         public Data data { get; set; }
         CancellationTokenSource cts;
         readonly string  server_url;
+        readonly AsyncRetryPolicy retryPolicy;
 
         public MainWindow()
         {
@@ -23,6 +26,11 @@ namespace wpf_client
             cts = new CancellationTokenSource();
             DataContext = this;
             server_url = "https://localhost:5001/";
+            var jitterer = new Random();
+            retryPolicy = Policy
+                          .Handle<HttpRequestException>()
+                          .WaitAndRetryAsync(5,
+                           retryAttempt => TimeSpan.FromMilliseconds(100));
         }
 
         private async void OpenDialogAndPredict(object sender, RoutedEventArgs e)
@@ -41,91 +49,113 @@ namespace wpf_client
             data.CancelEnabled = true;
             data.ClearEnabled = false;
 
-            foreach (var path in image_paths)
+            try
             {
-                byte[] image = System.IO.File.ReadAllBytes(path);
-
-                var http = new HttpClient();
-                http.BaseAddress = new Uri(server_url);
-                http.DefaultRequestHeaders.Accept.Clear();
-                http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                var response = await HttpClientJsonExtensions.PostAsJsonAsync(http, "api/images", Convert.ToBase64String(image), cts.Token);
-               // MessageBox.Show( response.Content.ReadAsStringAsync().Result);
-                response.EnsureSuccessStatusCode();
-                string result = await response.Content.ReadFromJsonAsync<string>();
-
-                if (result == "") --data.MaxProgress;
-                else
+                await retryPolicy.ExecuteAsync(async () =>
                 {
-                    if (result == "error") { MessageBox.Show("Calculations have been canceled"); break; }
-                    else
+                    foreach (var path in image_paths)
                     {
-                        Dictionary<string, float> emotions_dict = result.Split("; ")
-                                                                        .Select(s => s.Split(": "))
-                                                                        .ToDictionary(s => s[0], s => float.Parse(s[1]));
-                        data.Results.Add(new Result { Image = image, Emotions = emotions_dict });
-                        pb.Value++;
-                        data.ProgressText = pb.Value.ToString();
+                        byte[] image = System.IO.File.ReadAllBytes(path);
+
+                        var http = new HttpClient();
+                        http.BaseAddress = new Uri(server_url);
+                        http.DefaultRequestHeaders.Accept.Clear();
+                        http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                        var response = await HttpClientJsonExtensions.PostAsJsonAsync(http, "api/images", Convert.ToBase64String(image), cts.Token);
+                        response.EnsureSuccessStatusCode();
+                        string result = await response.Content.ReadFromJsonAsync<string>();
+
+                        if (result == "") --data.MaxProgress;
+                        else
+                        {
+                            Dictionary<string, float> emotions_dict = result.Split("; ")
+                                                                            .Select(s => s.Split(": "))
+                                                                            .ToDictionary(s => s[0], s => float.Parse(s[1]));
+                            data.Results.Add(new Result { Image = image, Emotions = emotions_dict });
+                            pb.Value++;
+                            data.ProgressText = pb.Value.ToString();
+                        }
                     }
-                }
+                });
             }
-            data.CancelEnabled = false;
-            data.ClearEnabled = true;
-           // KeyChanged(sender, e);
+            catch (Exception) { MessageBox.Show("Server is unavailable \n or\nCalculations have been cancelled"); }
+            finally
+            {
+                data.CancelEnabled = false;
+                data.ClearEnabled = true;
+            }
         }
 
         private async void GetImagesFromDb(object sender, RoutedEventArgs e)
         {
-            var http = new HttpClient();
-            http.BaseAddress = new Uri(server_url);
-            http.DefaultRequestHeaders.Accept.Clear();
-            http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            var response_images = await http.GetAsync("api/images/images_db");
-            List<string> images = await response_images.Content.ReadFromJsonAsync<List<string>>();
-            var response_results = await http.GetAsync("api/images/results_db");
-            List<string> emotions = await response_results.Content.ReadFromJsonAsync<List<string>>();
-
-            var items = images.Zip(emotions, (i, e) => new
+            try
             {
-                image = Convert.FromBase64String(i),
-                emotions = e
-            });
-            foreach (var item in items)
+                await retryPolicy.ExecuteAsync(async () =>
                 {
-                    Dictionary<string, float> emotions_dict = item.emotions
-                                                                  .Split("; ")
-                                                                  .Select(s => s.Split(": "))
-                                                                  .ToDictionary(s => s[0], s => float.Parse(s[1]));
-                    data.Results.Add(new Result { Image = item.image, Emotions = emotions_dict });
-                }
-            
-           // KeyChanged(sender, e);
-            data.UploadEnabled = false;
-            data.ClearEnabled= true;
+                    var http = new HttpClient();
+                    http.BaseAddress = new Uri(server_url);
+                    http.DefaultRequestHeaders.Accept.Clear();
+                    http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                    var response_images = await http.GetAsync("api/images/images_db");
+                    response_images.EnsureSuccessStatusCode();
+                    List<string> images = await response_images.Content.ReadFromJsonAsync<List<string>>();
+                    var response_results = await http.GetAsync("api/images/results_db");
+                    response_results.EnsureSuccessStatusCode();
+                    List<string> emotions = await response_results.Content.ReadFromJsonAsync<List<string>>();
+
+                    var items = images.Zip(emotions, (i, e) => new
+                    {
+                        image = Convert.FromBase64String(i),
+                        emotions = e
+                    });
+                    foreach (var item in items)
+                    {
+                        Dictionary<string, float> emotions_dict = item.emotions
+                                                                      .Split("; ")
+                                                                      .Select(s => s.Split(": "))
+                                                                      .ToDictionary(s => s[0], s => float.Parse(s[1]));
+                        data.Results.Add(new Result { Image = item.image, Emotions = emotions_dict });
+                    }
+                });
+            }
+            catch (Exception) { MessageBox.Show("Server is unavailable"); }
+            finally
+            {
+                data.UploadEnabled = false;
+                data.ClearEnabled = true;
+            }
         }
 
         private async void KeyChanged(object sender, RoutedEventArgs e)
         {
-            ObservableCollection<Result> sorted_results = new();
-            var http = new HttpClient();
-            http.BaseAddress = new Uri(server_url);
-            http.DefaultRequestHeaders.Accept.Clear();
-            http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            var response = await http.GetAsync($"api/images?emotion={data.SelectedKey}");
-            Dictionary<string, string> results = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
-
-            data.Results.Clear();
-            foreach (var r in results)
+            try
             {
-                Dictionary<string, float> emotions_dict = r.Value.Split("; ")
-                                                                 .Select(s => s.Split(": "))
-                                                                 .ToDictionary(s => s[0], s => float.Parse(s[1]));
-                data.Results.Add(new Result
+                await retryPolicy.ExecuteAsync(async () =>
                 {
-                    Image = Convert.FromBase64String(r.Key),
-                    Emotions = emotions_dict
+                    ObservableCollection<Result> sorted_results = new();
+                    var http = new HttpClient();
+                    http.BaseAddress = new Uri(server_url);
+                    http.DefaultRequestHeaders.Accept.Clear();
+                    http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                    var response = await http.GetAsync($"api/images?emotion={data.SelectedKey}");
+                    response.EnsureSuccessStatusCode();
+                    Dictionary<string, string> results = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+
+                    data.Results.Clear();
+                    foreach (var r in results)
+                    {
+                        Dictionary<string, float> emotions_dict = r.Value.Split("; ")
+                                                                         .Select(s => s.Split(": "))
+                                                                         .ToDictionary(s => s[0], s => float.Parse(s[1]));
+                        data.Results.Add(new Result
+                        {
+                            Image = Convert.FromBase64String(r.Key),
+                            Emotions = emotions_dict
+                        });
+                    }
                 });
             }
+            catch (Exception) { MessageBox.Show("Server is unavailable"); }
         }
 
         private void Cancel(object sender, RoutedEventArgs e)
@@ -139,11 +169,18 @@ namespace wpf_client
             data.MaxProgress = 0;
             data.ProgressText = "";
 
-            var http = new HttpClient();
-            http.BaseAddress = new Uri(server_url);
-            await http.DeleteAsync("api/images");
-
-            data.UploadEnabled = true;
+            try
+            {
+                await retryPolicy.ExecuteAsync(async () =>
+                {
+                    var http = new HttpClient();
+                    http.BaseAddress = new Uri(server_url);
+                    var response = await http.DeleteAsync("api/images");
+                    response.EnsureSuccessStatusCode();
+                });
+            }
+            catch (Exception) { MessageBox.Show("Server is unavailable"); }
+            finally { data.UploadEnabled = true; }
         }
     }
 }
