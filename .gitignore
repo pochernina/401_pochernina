@@ -135,3 +135,6 @@ $RECYCLE.BIN/
 .DS_Store
 
 _NCrunch*
+
+
+node_modules
